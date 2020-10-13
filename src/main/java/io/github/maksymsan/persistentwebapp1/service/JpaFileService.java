@@ -48,8 +48,7 @@ public class JpaFileService implements FileService {
 
     Logger log = LoggerFactory.getLogger(this.getClass());
 
-    private final String[] HEADERS = {"PRIMARY_KEY","NAME","DESCRIPTION","UPDATED_TIMESTAMP"};
-    private final List<String> headerList = Arrays.asList(HEADERS);
+    private final List<String> headerList = Arrays.asList(CSVFormatConstants.HEADERS);
 
     private final NamedObjectRepository namedObjectRepository;
 
@@ -86,7 +85,7 @@ public class JpaFileService implements FileService {
                             lineNumber));
                 }
 
-                final String primaryKeyString = record.get(HEADERS[0]);
+                final String primaryKeyString = record.get(CSVFormatConstants.PRIMARY_KEY);
                 if (primaryKeyString == null || primaryKeyString.isBlank()) {
                     throw new FileInvalidLineException(String.format("Primary key is blank at line %d",
                             lineNumber));
@@ -96,9 +95,9 @@ public class JpaFileService implements FileService {
                             lineNumber));
                 }
                 keySet.add(primaryKeyString);
-                final String nameString = record.get(HEADERS[1]);
-                final String descriptionString = record.get(HEADERS[2]);
-                final String timeStampString = record.get(HEADERS[3]);
+                final String nameString = record.get(CSVFormatConstants.NAME);
+                final String descriptionString = record.get(CSVFormatConstants.DESCRIPTION);
+                final String timeStampString = record.get(CSVFormatConstants.UPDATED_TIMESTAMP);
                 NamedObject namedObject = namedObjectRepository.findById(primaryKeyString).orElse(null);
                 if (namedObject == null) {
                     namedObject = new NamedObject();
