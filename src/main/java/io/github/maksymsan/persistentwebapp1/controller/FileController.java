@@ -18,14 +18,23 @@
 package io.github.maksymsan.persistentwebapp1.controller;
 
 import io.github.maksymsan.persistentwebapp1.api.FileService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.server.ResponseStatusException;
+
+import java.io.IOException;
+import java.io.InputStream;
 
 @RestController
 public class FileController {
+    public static final String ERROR_ON_GETTING_INPUT_STREAM = "Error on getting input stream";
+    Logger log = LoggerFactory.getLogger(this.getClass());
     private final FileService fileService;
 
     @Autowired
@@ -35,7 +44,12 @@ public class FileController {
 
     @PostMapping("/namedObjectFile")
     void postNamedObjectFile(@RequestParam("file") MultipartFile file) {
-        fileService.postNamedObjectFile(file);
+        try (InputStream inputStream = file.getInputStream()) {
+            fileService.postNamedObjectFile(inputStream);
+        } catch (IOException e) {
+            log.error(ERROR_ON_GETTING_INPUT_STREAM, e);
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, ERROR_ON_GETTING_INPUT_STREAM, e);
+        }
     }
 
 }

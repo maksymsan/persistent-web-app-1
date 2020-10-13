@@ -26,13 +26,15 @@ import io.github.maksymsan.persistentwebapp1.repository.NamedObjectRepository;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVParser;
 import org.apache.commons.csv.CSVRecord;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import org.springframework.web.multipart.MultipartFile;
 
 import javax.transaction.Transactional;
 import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeParseException;
@@ -43,6 +45,8 @@ import java.util.List;
 @Service
 @Transactional
 public class JpaFileService implements FileService {
+
+    Logger log = LoggerFactory.getLogger(this.getClass());
 
     private final String[] HEADERS = {"PRIMARY_KEY","NAME","DESCRIPTION","UPDATED_TIMESTAMP"};
     private final List<String> headerList = Arrays.asList(HEADERS);
@@ -55,9 +59,9 @@ public class JpaFileService implements FileService {
     }
 
     @Override
-    public void postNamedObjectFile(MultipartFile namedObjectFile) {
+    public void postNamedObjectFile(InputStream namedObjectFile) {
         HashSet<String> keySet = new HashSet<>();
-        try (InputStreamReader isr = new InputStreamReader(namedObjectFile.getInputStream());
+        try (InputStreamReader isr = new InputStreamReader(namedObjectFile);
              BufferedReader in = new BufferedReader(isr)) {
 
             CSVFormat csvFormat = CSVFormat.RFC4180.withFirstRecordAsHeader()
@@ -111,6 +115,7 @@ public class JpaFileService implements FileService {
                 namedObjectRepository.save(namedObject);
             }
         } catch (IOException e) {
+            log.error("Error on parsing CSV file", e);
             throw new FileReadException(e);
         }
     }
