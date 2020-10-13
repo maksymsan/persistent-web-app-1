@@ -18,14 +18,11 @@
 package io.github.maksymsan.persistentwebapp1.service;
 
 import io.github.maksymsan.persistentwebapp1.api.FileService;
+import io.github.maksymsan.persistentwebapp1.api.RecordProcessService;
 import io.github.maksymsan.persistentwebapp1.exception.FileInvalidHeaderException;
-import io.github.maksymsan.persistentwebapp1.exception.FileInvalidLineException;
 import io.github.maksymsan.persistentwebapp1.exception.FileReadException;
-import io.github.maksymsan.persistentwebapp1.model.NamedObject;
-import io.github.maksymsan.persistentwebapp1.repository.NamedObjectRepository;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVParser;
-import org.apache.commons.csv.CSVRecord;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -36,10 +33,7 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeParseException;
 import java.util.Arrays;
-import java.util.HashSet;
 import java.util.List;
 
 @Service
@@ -48,18 +42,17 @@ public class JpaFileService implements FileService {
 
     Logger log = LoggerFactory.getLogger(this.getClass());
 
-    private final List<String> headerList = Arrays.asList(CSVFormatConstants.HEADERS);
+    private final List<String> csvHeaderList = Arrays.asList(CSVFormatConstants.HEADERS);
 
-    private final NamedObjectRepository namedObjectRepository;
+    private final RecordProcessService recordProcessService;
 
     @Autowired
-    public JpaFileService(NamedObjectRepository namedObjectRepository) {
-        this.namedObjectRepository = namedObjectRepository;
+    public JpaFileService(RecordProcessService recordProcessService) {
+        this.recordProcessService = recordProcessService;
     }
 
     @Override
     public void postNamedObjectFile(InputStream namedObjectFile) {
-        HashSet<String> keySet = new HashSet<>();
         try (InputStreamReader isr = new InputStreamReader(namedObjectFile);
              BufferedReader in = new BufferedReader(isr)) {
 
@@ -70,49 +63,14 @@ public class JpaFileService implements FileService {
             try {
                 parser = csvFormat.parse(in);
 
-                if (!headerList.equals(parser.getHeaderNames())) {
+                if (!csvHeaderList.equals(parser.getHeaderNames())) {
                     throw new IllegalArgumentException("Header does not correspond to the defined format");
                 }
             } catch (IllegalArgumentException e) {
                 throw new FileInvalidHeaderException("File header is not valid", e);
             }
 
-            int lineNumber = 1;
-            for (CSVRecord record : parser) {
-                lineNumber++;
-                if (!record.isConsistent()) {
-                    throw new FileInvalidLineException(String.format("Line %d has invalid number of columns",
-                            lineNumber));
-                }
-
-                final String primaryKeyString = record.get(CSVFormatConstants.PRIMARY_KEY);
-                if (primaryKeyString == null || primaryKeyString.isBlank()) {
-                    throw new FileInvalidLineException(String.format("Primary key is blank at line %d",
-                            lineNumber));
-                }
-                if (keySet.contains(primaryKeyString)) {
-                    throw new FileInvalidLineException(String.format("Duplicate primary key at line %d",
-                            lineNumber));
-                }
-                keySet.add(primaryKeyString);
-                final String nameString = record.get(CSVFormatConstants.NAME);
-                final String descriptionString = record.get(CSVFormatConstants.DESCRIPTION);
-                final String timeStampString = record.get(CSVFormatConstants.UPDATED_TIMESTAMP);
-                NamedObject namedObject = namedObjectRepository.findById(primaryKeyString).orElse(null);
-                if (namedObject == null) {
-                    namedObject = new NamedObject();
-                    namedObject.setPrimaryKey(primaryKeyString);
-                }
-                namedObject.setName(nameString);
-                namedObject.setDescription(descriptionString);
-                try {
-                    namedObject.setUpdatedTimestamp(LocalDateTime.parse(timeStampString));
-                } catch (DateTimeParseException e) {
-                    throw new FileInvalidLineException(String.format("Invalid timestamp in the line %d: %s",
-                            lineNumber, timeStampString), e);
-                }
-                namedObjectRepository.save(namedObject);
-            }
+            recordProcessService.process(parser);
         } catch (IOException e) {
             log.error("Error on parsing CSV file", e);
             throw new FileReadException(e);
