@@ -15,7 +15,7 @@
 	<description>Coding task</description>
 
 	<properties>
-		<java.version>14</java.version>
+		<java.version>17</java.version>
 	</properties>
 
 	<dependencies>
